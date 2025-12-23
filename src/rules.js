@@ -479,6 +479,29 @@ window.SME_Rules = [
 
   // 10. Accessibility
   {
+      id: "A11Y_HEADING_ORDER",
+      category: "Accessibility",
+      severity: "Improve",
+      run: (document) => {
+          const headings = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+          for (let i = 0; i < headings.length - 1; i++) {
+              const current = parseInt(headings[i].tagName.substring(1));
+              const next = parseInt(headings[i+1].tagName.substring(1));
+              // Check if skipped level (e.g., H1 -> H3, H2 -> H4)
+              // Note: It is allowed to go back up (e.g., H4 -> H2), but not down by more than 1
+              if (next > current + 1) {
+                  return {
+                      title: "Incorrect heading order",
+                      message: `Skipped heading level from H${current} to H${next}.`,
+                      fix: "Ensure headings follow a logical sequence (H1 → H2 → H3).",
+                      selector: headings[i+1]
+                  };
+              }
+          }
+          return null;
+      }
+  },
+  {
       id: "A11Y_ALT_MISSING",
       category: "Accessibility",
       severity: "Improve",
@@ -566,6 +589,69 @@ window.SME_Rules = [
                   message: `Found references to ${foundOld} but not ${currentYear}.`,
                   fix: "Update the copyright year in the footer.",
                   selector: "footer" || "body"
+              };
+          }
+          return null;
+      }
+  },
+  {
+      id: "CONTENT_SOCIAL_MISSING",
+      category: "Content",
+      severity: "Improve",
+      run: (document) => {
+          const socialDomains = ["facebook.com", "instagram.com", "linkedin.com", "twitter.com", "x.com", "youtube.com"];
+          const links = Array.from(document.querySelectorAll("a"));
+          const hasSocial = links.some(a => {
+              const href = (a.href || "").toLowerCase();
+              return socialDomains.some(d => href.includes(d));
+          });
+
+          if (!hasSocial) {
+              return {
+                  title: "Social media links missing",
+                  message: "Social proof is critical for modern businesses.",
+                  fix: "Add links to your active social media profiles in the footer.",
+                  selector: "footer" || "body"
+              };
+          }
+          return null;
+      }
+  },
+
+  // 12. Miscellaneous
+  {
+      id: "MISC_FAVICON_MISSING",
+      category: "Content",
+      severity: "Optional",
+      run: (document) => {
+          const icon = document.querySelector("link[rel*='icon']");
+          if (!icon) {
+              return {
+                  title: "Favicon is missing",
+                  message: "Favicons help users identify your tab.",
+                  fix: "Add a <link rel='icon'> tag to the head.",
+                  selector: "head"
+              };
+          }
+          return null;
+      }
+  },
+  {
+      id: "MISC_EXTERNAL_LINK_UNSAFE",
+      category: "Security",
+      severity: "Improve",
+      run: (document) => {
+          const unsafeLink = Array.from(document.querySelectorAll("a[target='_blank']")).find(a => {
+              const rel = (a.getAttribute("rel") || "").toLowerCase();
+              return !rel.includes("noopener") && !rel.includes("noreferrer");
+          });
+
+          if (unsafeLink) {
+              return {
+                  title: "Unsafe external link detected",
+                  message: "Links opening in new tabs should use rel='noopener'.",
+                  fix: "Add rel='noopener' to links with target='_blank'.",
+                  selector: unsafeLink
               };
           }
           return null;
