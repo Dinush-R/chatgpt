@@ -1,6 +1,8 @@
 // Rule Engine for SME Website Consultant
 
 window.SME_Rules = [
+  // --- EXISTING CATEGORIES ---
+
   // 1. Message Clarity
   {
     id: "CLARITY_H1_MISSING",
@@ -64,7 +66,6 @@ window.SME_Rules = [
     severity: "Critical",
     run: (document) => {
       const bodyText = document.body.innerText.substring(0, 300).toLowerCase();
-      // Improved Heuristic: Check for length AND presence of explanatory words
       if (bodyText.length < 50) {
         return {
           title: "Above-the-fold content is sparse",
@@ -73,20 +74,11 @@ window.SME_Rules = [
           selector: "body"
         };
       }
-
-      const explanatoryKeywords = ["we help", "we provide", "our service", "platform", "solution", "best", "leading", "specialist"];
-      // Note: This is a weak check, but better than nothing.
-      // Actually, if we just check if it's mostly navigation links, that's bad.
-      // Let's stick to the length check for Critical, but maybe warn if no "business" words found?
-      // "Analyze if they explain what the business offers" -> If we can't find common business verbs/nouns, maybe flag.
-
-      // For now, the length check is the most deterministic "Critical" failure.
-      // I'll leave the length check as the primary deterministic rule.
       return null;
     }
   },
 
-  // 2. Call-to-Action (CTA)
+  // 2. Conversion (CTA)
   {
     id: "CTA_MISSING_ABOVE_FOLD",
     category: "Conversion",
@@ -355,8 +347,6 @@ window.SME_Rules = [
               const style = window.getComputedStyle(el);
               if (style.position === "fixed") {
                   const rect = el.getBoundingClientRect();
-
-                  // If covers > 20% of screen height
                   if (rect.height > 150 && rect.width > window.innerWidth * 0.8) {
                       return {
                           title: "Fixed element blocking content",
@@ -369,7 +359,219 @@ window.SME_Rules = [
           }
           return null;
       }
+  },
+
+  // --- NEW CATEGORIES ---
+
+  // 7. Security & Technical
+  {
+      id: "SEC_HTTPS_MISSING",
+      category: "Security",
+      severity: "Critical",
+      run: (document) => {
+          if (window.location.protocol !== "https:") {
+              return {
+                  title: "Site is not secure (Not HTTPS)",
+                  message: "Security is non-negotiable for trust and SEO.",
+                  fix: "Enable HTTPS (SSL) on your server immediately.",
+                  selector: "body"
+              };
+          }
+          return null;
+      }
+  },
+  {
+      id: "SEC_UNSAFE_FORM",
+      category: "Security",
+      severity: "Critical",
+      run: (document) => {
+          const unsafeForms = Array.from(document.querySelectorAll("form")).find(f => {
+              const hasPassword = f.querySelector("input[type='password']");
+              return hasPassword && f.getAttribute("method")?.toLowerCase() === "get";
+          });
+
+          if (unsafeForms) {
+              return {
+                  title: "Form exposes sensitive data",
+                  message: "Forms with 'method=GET' expose passwords in the URL.",
+                  fix: "Change the form method to 'POST'.",
+                  selector: unsafeForms
+              };
+          }
+          return null;
+      }
+  },
+  {
+      id: "SEC_PLAINTEXT_PASS",
+      category: "Security",
+      severity: "Critical",
+      run: (document) => {
+          // Check for inputs named 'password' that are type 'text'
+          const badInput = document.querySelector("input[name*='password'][type='text']");
+          if (badInput) {
+               return {
+                   title: "Password field is not masked",
+                   message: "Passwords should be hidden as asterisks.",
+                   fix: "Change input type from 'text' to 'password'.",
+                   selector: badInput
+               };
+          }
+          return null;
+      }
+  },
+
+  // 8. Page Performance
+  {
+      id: "PERF_BROKEN_IMAGES",
+      category: "Performance",
+      severity: "Improve",
+      run: (document) => {
+          const images = document.querySelectorAll("img");
+          for (const img of images) {
+              // Heuristic: check if loaded but 0 width
+              if (img.complete && img.naturalWidth === 0) {
+                  return {
+                      title: "Broken image detected",
+                      message: "Broken images make the site look unprofessional.",
+                      fix: "Fix or remove the broken image link.",
+                      selector: img
+                  };
+              }
+          }
+          return null;
+      }
+  },
+
+  // 9. SEO Essentials
+  {
+      id: "SEO_TITLE_MISSING",
+      category: "SEO",
+      severity: "Critical",
+      run: (document) => {
+          if (!document.title || document.title.trim() === "") {
+              return {
+                  title: "Page title is missing",
+                  message: "Search engines rely on page titles to understand your content.",
+                  fix: "Add a descriptive <title> tag to the head.",
+                  selector: "head"
+              };
+          }
+          return null;
+      }
+  },
+  {
+      id: "SEO_META_DESC_MISSING",
+      category: "SEO",
+      severity: "Improve",
+      run: (document) => {
+          const meta = document.querySelector('meta[name="description"]');
+          if (!meta || !meta.content.trim()) {
+               return {
+                   title: "Meta description is missing",
+                   message: "Meta descriptions improve click-through rates from search results.",
+                   fix: "Add a <meta name='description'> tag.",
+                   selector: "head"
+               };
+          }
+          return null;
+      }
+  },
+
+  // 10. Accessibility
+  {
+      id: "A11Y_ALT_MISSING",
+      category: "Accessibility",
+      severity: "Improve",
+      run: (document) => {
+          const img = document.querySelector("img:not([alt])");
+          if (img) {
+              return {
+                  title: "Images missing alt text",
+                  message: "Alt text is required for screen readers and SEO.",
+                  fix: "Add descriptive 'alt' attributes to all images.",
+                  selector: img
+              };
+          }
+          return null;
+      }
+  },
+  {
+      id: "A11Y_EMPTY_LINK",
+      category: "Accessibility",
+      severity: "Improve",
+      run: (document) => {
+          // Check for links with empty href or # that have no role="button" logic usually
+          const link = Array.from(document.querySelectorAll("a")).find(a => {
+              const href = a.getAttribute("href");
+              return !href || href === "#" || href.trim() === "";
+          });
+
+          if (link) {
+              return {
+                  title: "Empty or broken link found",
+                  message: "Links with empty hrefs confuse users and screen readers.",
+                  fix: "Ensure all links point to a valid URL or ID.",
+                  selector: link
+              };
+          }
+          return null;
+      }
+  },
+  {
+      id: "A11Y_LABEL_MISSING",
+      category: "Accessibility",
+      severity: "Improve",
+      run: (document) => {
+          const input = Array.from(document.querySelectorAll("input:not([type='hidden']):not([type='submit'])")).find(i => {
+              if (i.id) {
+                  return !document.querySelector(`label[for='${i.id}']`);
+              }
+              // Check if wrapped in label
+              return !i.closest("label") && !i.getAttribute("aria-label");
+          });
+
+          if (input) {
+              return {
+                  title: "Form input missing label",
+                  message: "Inputs need labels for accessibility.",
+                  fix: "Add a <label> element associated with this input.",
+                  selector: input
+              };
+          }
+          return null;
+      }
+  },
+
+  // 11. Content Accuracy
+  {
+      id: "CONTENT_OLD_YEAR",
+      category: "Content",
+      severity: "Optional",
+      run: (document) => {
+          const currentYear = new Date().getFullYear();
+          const footer = document.querySelector("footer") || document.body;
+          const text = footer.innerText;
+          // Look for "201X" or "2020-2023" type patterns where the last year is < currentYear - 1
+          // Simple check: does it contain a year from 2010 to currentYear - 2?
+          const oldYears = [];
+          for (let y = 2010; y < currentYear - 1; y++) {
+              oldYears.push(y.toString());
+          }
+
+          const foundOld = oldYears.find(y => text.includes(y) && !text.includes(currentYear.toString()));
+
+          if (foundOld) {
+              return {
+                  title: "Copyright year might be outdated",
+                  message: `Found references to ${foundOld} but not ${currentYear}.`,
+                  fix: "Update the copyright year in the footer.",
+                  selector: "footer" || "body"
+              };
+          }
+          return null;
+      }
   }
+
 ];
 
 window.SME_Analyzer = {

@@ -1,6 +1,6 @@
 # SME Website Consultant Chrome Extension
 
-A privacy-focused, local-only Chrome Extension (Manifest V3) that audits webpages for small business best practices. It uses deterministic heuristics to provide a consultant-style report on Message Clarity, Conversion, Trust, and Mobile Readiness.
+A privacy-focused, local-only Chrome Extension (Manifest V3) that audits webpages for small business best practices. It uses deterministic heuristics to provide a consultant-style report on Message Clarity, Conversion, Trust, Mobile Readiness, Security, SEO, and Accessibility.
 
 ## 🚀 Installation
 
@@ -28,44 +28,61 @@ The background service worker listens for the extension icon click (`chrome.acti
 
 ### 3. The Content Script & UI (`src/content.js`)
 This script acts as the orchestrator:
-*   **Shadow DOM**: It creates a generic `<div>` host and attaches a **Shadow Root** (`attachShadow({mode: 'open'})`). The sidebar UI is rendered inside this shadow root. This ensures that:
-    *   The extension's styles (`src/styles.css`) do not leak out and affect the website.
-    *   The website's global styles do not bleed in and break the extension UI.
+*   **Shadow DOM**: It creates a generic `<div>` host and attaches a **Shadow Root** (`attachShadow({mode: 'open'})`). The sidebar UI is rendered inside this shadow root.
 *   **Orchestration**: It calls the Rule Engine to analyze the page and then generates the HTML for the sidebar based on the results.
-*   **Highlighting**: When a user clicks "Highlight", the script scrolls the target element into view and overlays a semi-transparent red box. This overlay is added to the main DOM (since it needs to be over the page content) using inline styles.
+*   **Highlighting**: When a user clicks "Highlight", the script scrolls the target element into view and overlays a semi-transparent red box.
 
 ### 4. The Rule Engine (`src/rules.js`)
-The core logic resides here. It is a collection of deterministic heuristic rules that inspect the DOM. It is **not** AI; it is a set of "smart checks" written in JavaScript.
+The core logic resides here. It is a collection of deterministic heuristic rules that inspect the DOM.
 
 #### Analysis Categories & Logic
 
 *   **1. Message Clarity**
-    *   **Headline Check**: Looks for an `<h1>` tag. Flags it if missing, or if it contains generic text like "Welcome" or "Home".
-    *   **Length Check**: Flags headlines longer than 14 words.
-    *   **Content Density**: Checks the first 300 characters of the `<body>` text. If it's too short (< 50 chars), it warns that the page might be empty or purely visual.
+    *   **Headline Check**: Missing or generic `<h1>`.
+    *   **Length Check**: Headlines > 14 words.
+    *   **Content Density**: Empty or sparse pages.
 
 *   **2. Conversion (CTA)**
-    *   **Visibility**: Scans for buttons/links with keywords ("contact", "quote", "buy", etc.). It checks their `getBoundingClientRect()` to ensure at least one is visible in the top 800px (Above the Fold).
-    *   **Competition**: Warns if there are more than 3 distinct CTAs visible in the top section, which can cause "analysis paralysis".
-    *   **Label Clarity**: Flags vague button text like "Submit" or "Click Here".
+    *   **Visibility**: CTAs hidden below the fold.
+    *   **Competition**: Too many competing CTAs.
+    *   **Label Clarity**: Vague labels like "Submit".
 
 *   **3. Contact Accessibility**
-    *   **Header Check**: Scans the `<header>` element for phone number patterns (`\d{3}...`) or email addresses. Also looks for `mailto:` or `tel:` links.
-    *   **Fallback**: If no header is found, it performs a broad check on the top of the page.
+    *   **Header Check**: Missing phone/email in header.
 
 *   **4. Form Friction**
-    *   **Length**: Counts required fields in `<form>` elements. If > 4, it flags a friction issue.
-    *   **Phone Mandates**: Detects if a phone number field has the `required` attribute.
-    *   **Privacy**: Checks near the form for words like "privacy" or "spam" to ensure trust reassurance is present.
+    *   **Length**: Forms with > 4 required fields.
+    *   **Phone Mandates**: Required phone number fields.
+    *   **Privacy**: Missing privacy/spam reassurance.
 
 *   **5. Trust Signals**
-    *   **Keywords**: Scans the page text for words like "testimonial", "review", "certified", "warranty". If none are found, it suggests adding social proof.
+    *   **Keywords**: Missing testimonials, reviews, or guarantees.
 
 *   **6. Mobile Readiness**
-    *   **Viewport Tag**: Checks for `<meta name="viewport">` in the `<head>`, crucial for mobile scaling.
-    *   **Touch Targets**: Checks the computed size of links/buttons. If `< 44px`, it flags them as too small for fingers.
-    *   **Horizontal Overflow**: Checks if `document.documentElement.scrollWidth` > `clientWidth`, indicating broken responsiveness.
-    *   **Fixed Elements**: Detects large sticky headers/banners that cover > 20% of the screen, which harms mobile UX.
+    *   **Viewport Tag**: Missing `<meta name="viewport">`.
+    *   **Touch Targets**: Buttons/links < 44px.
+    *   **Horizontal Overflow**: Content wider than screen.
+    *   **Fixed Elements**: Large sticky headers covering content.
+
+*   **7. Security**
+    *   **HTTPS**: Flags non-secure HTTP pages.
+    *   **Unsafe Forms**: Flags forms using `GET` method for passwords.
+    *   **Passwords**: Flags password fields using `type="text"`.
+
+*   **8. Performance**
+    *   **Broken Images**: Detects images that failed to load (0 width).
+
+*   **9. SEO Essentials**
+    *   **Title**: Missing page title.
+    *   **Meta Description**: Missing meta description.
+
+*   **10. Accessibility**
+    *   **Alt Text**: Images missing `alt` attributes.
+    *   **Empty Links**: Links with empty or `#` hrefs.
+    *   **Form Labels**: Inputs missing associated labels.
+
+*   **11. Content Accuracy**
+    *   **Outdated Year**: Detects old years in the footer (e.g., copyright 2020).
 
 ## 📂 Project Structure
 
