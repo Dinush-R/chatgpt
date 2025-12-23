@@ -20,8 +20,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/styles.css"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "src/styles.css"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }
