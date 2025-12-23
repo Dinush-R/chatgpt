@@ -17,6 +17,24 @@
     // Run Analysis
     const issues = window.SME_Analyzer.analyze();
 
+    // Calculate Overall Status
+    const criticalCount = issues.filter(i => i.severity === "Critical").length;
+    const improveCount = issues.filter(i => i.severity === "Improve").length;
+
+    let overallStatus = "Ready to Launch";
+    let statusIcon = "✅";
+    let statusColor = "green";
+
+    if (criticalCount > 0) {
+        overallStatus = "Not Production Ready";
+        statusIcon = "❌";
+        statusColor = "#e03131"; // red-9
+    } else if (improveCount > 0) {
+        overallStatus = "Needs Fixes";
+        statusIcon = "⚠️";
+        statusColor = "#f08c00"; // orange-9
+    }
+
     // Helper to sort by severity
     const severityOrder = { "Critical": 0, "Improve": 1, "Optional": 2 };
 
@@ -60,23 +78,24 @@
 
     let contentHtml = "";
 
+    // Header Status
+    contentHtml += `
+    <div class="status-card" style="border-left: 5px solid ${statusColor};">
+        <h3>${statusIcon} ${overallStatus}</h3>
+        <p>Found ${criticalCount} Critical and ${improveCount} Improvement issues.</p>
+    </div>
+    `;
+
     if (issues.length === 0) {
-        contentHtml = `<div class="empty-state">No critical issues found! Great job.</div>`;
+        contentHtml += `<div class="empty-state">No critical issues found! Great job.</div>`;
     } else {
         sortedCategories.forEach(category => {
             contentHtml += `<div class="category-group">
                 <h3 class="category-title">${escapeHtml(category)}</h3>
                 ${groupedIssues[category].map((issue) => {
-                    // Find index in original flat list or keep a reference?
-                    // Let's attach the data-id or something to find it.
-                    // Actually, let's just use the issue ID to find it in the flat 'issues' array if needed,
-                    // or better, store the issue object in a map.
-                    // But for highlighting, I need to know which element.
-                    // I'll serialize the issue into the DOM? No, security risk.
-                    // I will just use a global map or look it up.
-                    // Simpler: re-assign indices based on render order? No.
-                    // Let's store the index from the main 'issues' array.
                     const originalIndex = issues.indexOf(issue);
+                    const isManual = issue.type === "manual";
+
                     return `
                     <div class="issue-card" data-index="${originalIndex}">
                         <div class="issue-header">
@@ -84,15 +103,28 @@
                             <span class="badge badge-${issue.severity.toLowerCase()}">${issue.severity}</span>
                         </div>
                         <div class="issue-message">${escapeHtml(issue.message)}</div>
-                        <div class="issue-fix">
-                            <span class="fix-label">Suggestion</span>
-                            ${escapeHtml(issue.fix)}
+
+                        <div class="issue-fixes">
+                            <div class="fix-block">
+                                <span class="fix-label">Suggestion:</span>
+                                ${escapeHtml(issue.fix)}
+                            </div>
+                            ${issue.devFix ? `
+                            <div class="fix-block dev-fix">
+                                <span class="fix-label">Technical Fix:</span>
+                                <span class="fix-code">${escapeHtml(issue.devFix)}</span>
+                            </div>
+                            ` : ''}
                         </div>
-                        ${(issue.selectorElement && issue.selectorElement !== "body") ? `
+
                         <div class="actions">
-                            <button class="highlight-btn" data-index="${originalIndex}">Highlight</button>
+                            ${(!isManual && issue.selectorElement && issue.selectorElement !== "body") ? `
+                            <button class="highlight-btn" data-index="${originalIndex}">Highlight Element</button>
+                            ` : ''}
+                            ${isManual ? `
+                            <span class="manual-note">Requires manual check</span>
+                            ` : ''}
                         </div>
-                        ` : ''}
                     </div>
                     `;
                 }).join('')}
